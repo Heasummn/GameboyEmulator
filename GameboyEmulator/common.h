@@ -15,3 +15,7 @@ static const int CARRY_FLAG = 4;
 // Type definitions
 typedef uint8_t byte;
 typedef uint16_t word;
+
+inline word join_bytes(const byte high_b, const byte low_b) {
+	return static_cast<word>((high_b << 8) | low_b);
+}

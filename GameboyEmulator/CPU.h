@@ -49,11 +49,20 @@ private:
 	std::unique_ptr<MMU> mmu;
 	byte* byteRegisters[8];
 
-	byte* getByteRegister(byte num);
+	void setByteRegisters(byte src, byte dst);
+	byte getByteRegister(byte reg_num);
+	word getWordAtPC();
+
+	void stackPush(word reg);
+	void stackPop(word& reg);
 
 	// opcodes
 	void LD_r16(byte opcode);
 	void LD_r_r(byte opcode);
 	void ALU_r(byte opcode);
+	void JP_16();
+	void RET();
+	void CALL_16();
+	void RST(word address);
 };
 
