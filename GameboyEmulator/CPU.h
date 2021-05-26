@@ -11,9 +11,8 @@ public:
 	~CPU();
 	void loadRom(std::string name);
 	void step();
-private:
 
-	struct {
+	typedef struct {
 		// BC, DE, and HL registers are paired together as 16 bit
 		union
 		{
@@ -45,10 +44,17 @@ private:
 
 		word sp;
 		word pc;
-	} registers;
+	} registers_t;
+
+	inline registers_t getRegisters() { return registers; };
+private:
+
+	
+	registers_t registers;
 	std::unique_ptr<MMU> mmu;
 	byte* byteRegisters[8];
 
+	void setByteRegisterVal(byte dst, byte val);
 	void setByteRegisters(byte src, byte dst);
 	byte getByteRegister(byte reg_num);
 	word getWordAtPC();
@@ -57,9 +63,19 @@ private:
 	void stackPop(word& reg);
 
 	// opcodes
+	void INC_DEC_reg8(byte opcode);
+	void INC_DEC_reg16(byte opcode);
+	void LD_r8(byte opcode);
 	void LD_r16(byte opcode);
+	void LD_address_acc(byte opcode);
+	void LD_acc_data();
+	void LD_acc_address(byte opcode);
 	void LD_r_r(byte opcode);
+	void LD_address_r(byte opcode);
+	void LD_r_address(byte& opcode);
 	void ALU_r(byte opcode);
+	void JR();
+	void JR(bool flag);
 	void JP_16();
 	void RET();
 	void CALL_16();

@@ -28,6 +28,9 @@ int main(int argc, char* args[])
 		SDL_SetRenderTarget(renderer, nullptr);
 	}
 
+	CPU* cpu = new CPU();
+	cpu->loadRom("./tetris.gb");
+
 	bool run = true;
 	while (run)
 	{
@@ -65,11 +68,36 @@ int main(int argc, char* args[])
 		io.MouseWheel = static_cast<float>(wheel);
 
 		ImGui::NewFrame();
+		
 
-		ImGui::ShowDemoWindow();
+		// ImGui::ShowDemoWindow();
+		CPU::registers_t registers = cpu->getRegisters();
+		ImGui::Begin("Debugger Controls");
+		if (ImGui::Button("Step")) {
+			cpu->step();
+		}
+		if (ImGui::Button("Step x10")) {
+			for(int i = 0; i < 10; i++)
+				cpu->step();
+		}
+		if (ImGui::Button("Step x1000")) {
+			for (int i = 0; i < 1000; i++)
+				cpu->step();
+		}
+		if (ImGui::Button("Run Until 0x279E")) {
+			while (registers.pc < 0x2700) {
+				cpu->step();
+				registers = cpu->getRegisters();
+			}
+		}
+		ImGui::End();
 
-		ImGui::Begin("Image");
-		ImGui::Image(texture, ImVec2(100, 100));
+		ImGui::Begin("CPU Info");
+		ImGui::Text("Register Values: ");
+		ImGui::Text("PC: 0x%X; B: 0x%X; C: 0x%X; D: 0x%X; E: 0x%X; H: 0x%X; L: 0x%X; ACC: 0x%X", registers.pc, registers.b, registers.c, registers.d, registers.e, registers.h, registers.l, registers.acc);
+		ImGui::Spacing();
+		ImGui::Text("Flags: ");
+		ImGui::Text("Flag: 0x%X; ZERO: %d; SUB: %d; HC: %d; C: %d", registers.flag, ACCESS_BIT(registers.flag, ZERO_FLAG), ACCESS_BIT(registers.flag, SUB_FLAG), ACCESS_BIT(registers.flag, HALF_CARRY_FLAG), ACCESS_BIT(registers.flag, CARRY_FLAG));
 		ImGui::End();
 
 		SDL_SetRenderDrawColor(renderer, 114, 144, 154, 255);
@@ -89,13 +117,5 @@ int main(int argc, char* args[])
 	ImGui::DestroyContext();
 
 	return 0;
-	/*CPU* cpu = new CPU();
-
-	cpu->loadRom("./cpu_instrs.gb");
-	for (;;)
-	{
-		cpu->step();
-	}
-	return 0;
-	*/
+	
 }

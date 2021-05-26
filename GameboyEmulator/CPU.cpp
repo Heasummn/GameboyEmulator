@@ -22,11 +22,18 @@ CPU::~CPU()
 {
 }
 
-
+// TODO: Parsing the gameboy opcodes is fine for now, I will probably want to do a major rewrite of this to use a map or something else later though and it might be easier to just hand-write the opcodes
 void CPU::step()
 {
 	byte opcode = mmu->readByte(registers.pc++);
-	std::cout << std::hex << static_cast<int>(opcode) << std::endl;
+	if (registers.pc > 0x1000) {
+		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
+	}
+
+	if (registers.pc == 0x2817) {
+		std::cout << "starting tileset load" << std::endl; 
+		return;
+	}
 
 	switch (opcode) {
 	case 0x00:
@@ -36,6 +43,37 @@ void CPU::step()
 	// LD 16 bit
 	case 0x01: case 0x11: case 0x21: case 0x31:
 		LD_r16(opcode);
+		break;
+
+	// LD acc into address at register
+	case 0x02: case 0x12: case 0x22: case 0x32:
+		LD_address_acc(opcode);
+		break;
+
+	case 0x03: case 0x0B: case 0x13: case 0x1B: case 0x23: case 0x2B: case 0x33: case 0x3B:
+		INC_DEC_reg16(opcode);
+		break;
+
+	// INC/DEC register
+	case 0x04: case 0x05: case 0x0C: case 0x0D: case 0x14: case 0x15: case 0x1C: case 0x1D: case 0x24: case 0x25: case 0x2C: case 0x2D: case 0x34: case 0x35: case 0x3C: case 0x3D:
+		INC_DEC_reg8(opcode);
+		break;
+	
+	// LD address from PC into r8
+	case 0x06: case 0x0E: case 0x16: case 0x1E: case 0x26: case 0x2E: case 0x36: case 0x3E:
+		LD_r8(opcode);
+		break;
+
+	// LD address in register into acc 
+	case 0x0A: case 0x1A: case 0x2A: case 0x3A:
+		LD_acc_address(opcode);
+		break;
+	
+	case 0x20:
+		JR(ACCESS_BIT(registers.flag, ZERO_FLAG) == 0);
+		break;
+	case 0x30: 
+		JR(ACCESS_BIT(registers.flag, CARRY_FLAG) == 0);
 		break;
 
 	// 0b01rrrRRR, ignoring HALT
@@ -65,13 +103,25 @@ void CPU::step()
 		CALL_16();
 		break;
 
+	case 0xE0:
+		LD_acc_data();
+		break;
+
+	case 0xEA:
+		LD_address_r(registers.acc);
+		break;
+
+	case 0xFA:
+		LD_r_address(registers.acc);
+		break;
+
 	// RST
 	case 0xFF:
 		RST(0x38);
 		break;
 
 	default:
-	//	std::cout << std::hex << static_cast<int>(opcode) << std::endl;
+		std::cout << "Unknown opcode: " << std::hex << static_cast<int>(opcode) << std::endl;
 		break;
 	}
 	
@@ -80,6 +130,16 @@ void CPU::step()
 void CPU::loadRom(std::string name)
 {
 	mmu->load(name);
+}
+
+void CPU::setByteRegisterVal(byte dst, byte val) {
+	if (dst == 6) {
+		mmu->writeByte(registers.hl, val);
+	}
+	else {
+		byte* dst_reg = byteRegisters[dst & 0b111];
+		*dst_reg = val;
+	}
 }
 
 void CPU::setByteRegisters(byte src, byte dst) {
@@ -131,6 +191,57 @@ void CPU::stackPop(word& reg)
 	reg = pop;
 }
 
+void CPU::INC_DEC_reg8(byte opcode) // TODO: set flags
+{
+	byte reg = (opcode >> 3) & 0b111;
+	byte type = opcode & 0b1;
+	// LSB is 0 if INC, 1 if DEC
+	if (type == 0) {
+		setByteRegisterVal(reg, getByteRegister(reg) + 1);
+	} else {
+		setByteRegisterVal(reg, getByteRegister(reg) - 1);
+	}
+	SET_BIT(registers.flag, ZERO_FLAG, getByteRegister(reg) == 0);
+}
+
+// TODO: Set Flags
+void CPU::INC_DEC_reg16(byte opcode)
+{
+	// if the third bit is 0, INC, else DEC
+	byte type = ACCESS_BIT(opcode, 3);
+	byte reg_num = (opcode >> 4) & 0b11;
+	word * reg = &registers.bc;
+	switch (reg_num) {
+	case 0:
+		reg = &registers.bc;
+		break;
+	case 1:
+		reg = &registers.de;
+		break;
+	case 2:
+		reg = &registers.hl;
+		break;
+	case 3:
+		reg = &registers.sp;
+		break;
+	}
+	std::cout << "Modifying register " << (int)reg_num << " with operation " << (int)type << std::endl;
+	if (type == 0) {
+		(*reg)++;
+	} else {
+		(*reg)--;
+	}
+
+	SET_BIT(registers.flag, ZERO_FLAG, *reg == 0);
+}
+
+void CPU::LD_r8(byte opcode)
+{
+	byte reg = (opcode >> 3) & 0b111;
+	byte value = mmu->readByte(registers.pc++);
+	setByteRegisterVal(reg, value);
+}
+
 void CPU::LD_r16(byte opcode)
 {
 	byte reg_num = (opcode >> 4) & 0b11;
@@ -155,12 +266,78 @@ void CPU::LD_r16(byte opcode)
 
 }
 
+void CPU::LD_acc_address(byte opcode)
+{
+	byte reg_num = (opcode >> 4) & 0b11;
+	word reg = registers.bc;
+	switch (reg_num) {
+	case 0:
+		reg = registers.bc;
+		break;
+	case 1:
+		reg = registers.de;
+		break;
+	case 2: case 3:
+		reg = registers.hl;
+		break;
+	}
+
+	registers.acc = mmu->readByte(reg);
+	if (reg_num == 2) {
+		registers.hl += 1;
+	} else if (reg_num == 3) {
+		registers.hl -= 1;
+	}
+}
+
+void CPU::LD_address_acc(byte opcode)
+{
+	byte reg_num = (opcode >> 4) & 0b11;
+	word reg = registers.bc;
+	switch (reg_num) {
+	case 0:
+		reg = registers.bc;
+		break;
+	case 1:
+		reg = registers.de;
+		break;
+	case 2: case 3:
+		reg = registers.hl;
+		break;
+	}
+
+	mmu->writeByte(reg, registers.acc);
+	if (reg_num == 2) {
+		registers.hl += 1;
+	}
+	else if (reg_num == 3) {
+		registers.hl -= 1;
+	}
+}
+
+void CPU::LD_acc_data() {
+	byte offset = mmu->readByte(registers.pc++);
+	word data_address = 0xFF00 + offset;
+	mmu->writeByte(data_address, registers.acc);
+}
+
 // Loads the contents of a register into another register
 void CPU::LD_r_r(byte opcode)
 {
 	byte dst = (opcode >> 3) & 0b111;
 	byte src = opcode & 0b111;
 	setByteRegisters(src, dst);
+}
+
+void CPU::LD_address_r(byte reg)
+{
+	word add = getWordAtPC();
+	mmu->writeByte(add, reg);
+}
+
+void CPU::LD_r_address(byte& reg) {
+	word add = getWordAtPC();
+	reg = mmu->readByte(add);
 }
 
 void CPU::ALU_r(byte opcode)
@@ -172,28 +349,53 @@ void CPU::ALU_r(byte opcode)
 	switch (operation) {
 	case 0:
 		registers.acc += reg;
+		SET_BIT(registers.flag, SUB_FLAG, 0);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 1:
 		registers.acc += reg + ACCESS_BIT(registers.flag, CARRY_FLAG);
+		SET_BIT(registers.flag, SUB_FLAG, 0);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 2:
 		registers.acc -= reg;
+		SET_BIT(registers.flag, SUB_FLAG, 1);
 		break;
 	case 3:
-		registers.acc -= reg - ACCESS_BIT(registers.flag, CARRY_FLAG);
+		registers.acc -= reg + ACCESS_BIT(registers.flag, CARRY_FLAG);
+		SET_BIT(registers.flag, SUB_FLAG, 1);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 4:
 		registers.acc &= (reg);
+		SET_BIT(registers.flag, CARRY_FLAG, 0);
+		SET_BIT(registers.flag, HALF_CARRY_FLAG, 1);
+		SET_BIT(registers.flag, SUB_FLAG, 0);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 5:
 		registers.acc ^= (reg);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 6:
 		registers.acc |= (reg);
+		SET_BIT(registers.flag, ZERO_FLAG, registers.acc == 0);
 		break;
 	case 7:
 		(registers.acc - reg) == 0 ? SET_BIT(registers.flag, ZERO_FLAG, 1) : SET_BIT(registers.flag, ZERO_FLAG, 0);
 		break;
+	}
+}
+
+void CPU::JR() {
+	signed_byte offset = static_cast<signed_byte>(mmu->readByte(registers.pc++));
+	registers.pc += offset;
+}
+
+void CPU::JR(bool flag) {
+	signed_byte offset = static_cast<signed_byte>(mmu->readByte(registers.pc++));
+	if (flag) {
+		registers.pc += offset;
 	}
 }
 

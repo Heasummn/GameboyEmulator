@@ -2,8 +2,8 @@
 #include <cstdint>
 
 // Macro definitions, mainly bit fiddling
-#define ACCESS_BIT(x, bit) (x & (1 << (bit)))
-#define SET_BIT(x, bit, value) (x ^= (-value ^ x) & (1 << bit))
+#define ACCESS_BIT(x, bit) ((x >> bit) & 1U)
+#define SET_BIT(x, bit, value) (x ^= (-(value) ^ x) & (1 << bit))
 #define CLEAR_FLAG() registers.flag = 0;
 
 // Constant definitions
@@ -14,6 +14,7 @@ static const int CARRY_FLAG = 4;
 
 // Type definitions
 typedef uint8_t byte;
+typedef int8_t signed_byte;
 typedef uint16_t word;
 
 inline word join_bytes(const byte high_b, const byte low_b) {
