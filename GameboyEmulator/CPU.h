@@ -47,12 +47,15 @@ public:
 	} registers_t;
 
 	inline registers_t getRegisters() { return registers; };
+
+	int instTime; // TODO: not sure what the best type for this is
 private:
 
 	
 	registers_t registers;
 	std::unique_ptr<MMU> mmu;
 	byte* byteRegisters[8];
+	int clockTime; // TODO: not sure what the best type for this is
 
 	void setByteRegisterVal(byte dst, byte val);
 	void setByteRegisters(byte src, byte dst);

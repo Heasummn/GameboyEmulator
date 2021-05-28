@@ -26,6 +26,7 @@ CPU::~CPU()
 void CPU::step()
 {
 	byte opcode = mmu->readByte(registers.pc++);
+
 	if (registers.pc > 0x1000) {
 		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
 	}

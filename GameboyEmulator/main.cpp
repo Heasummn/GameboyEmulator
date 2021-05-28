@@ -32,8 +32,8 @@ int main(int argc, char* args[])
 	ImGuiSDL::Initialize(renderer, 800, 600);
 
 
-	const unsigned int screenWidth = 800;
-	const unsigned int screenHeight = 600;
+	const unsigned int screenWidth = 160;
+	const unsigned int screenHeight = 144;
 
 	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight);
 	std::vector< unsigned char > pixels(screenWidth * screenHeight * 4, 255);
