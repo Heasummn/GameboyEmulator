@@ -2,12 +2,14 @@
 
 #include <memory>
 #include "common.h"
+#include "opcode_timings.h"
+#include "GPU.h"
 #include "MMU.h"
 
 class CPU
 {
 public:
-	CPU();
+	CPU(draw_callback_t draw_func);
 	~CPU();
 	void loadRom(std::string name);
 	void step();
@@ -53,9 +55,14 @@ private:
 
 	
 	registers_t registers;
-	std::unique_ptr<MMU> mmu;
+	MMU mmu;
+	GPU gpu;
+
 	byte* byteRegisters[8];
+
+
 	int clockTime; // TODO: not sure what the best type for this is
+	bool branchTaken;
 
 	void setByteRegisterVal(byte dst, byte val);
 	void setByteRegisters(byte src, byte dst);

@@ -1,13 +1,15 @@
 #include "CPU.h"
 #include <iostream>
 
-CPU::CPU()
+CPU::CPU(draw_callback_t draw_func) : mmu(), gpu(mmu, draw_func)
 {
+	branchTaken = false;
+	clockTime = 0;
+	instTime = 0;
 	registers = { 0 };
 	registers.pc = 0x0100;
 	registers.sp = 0xFFFE;
 	
-	mmu = std::unique_ptr<MMU>(new MMU());
 	byteRegisters[0] = &registers.b;
 	byteRegisters[1] = &registers.c;
 	byteRegisters[2] = &registers.d;
@@ -25,7 +27,8 @@ CPU::~CPU()
 // TODO: Parsing the gameboy opcodes is fine for now, I will probably want to do a major rewrite of this to use a map or something else later though and it might be easier to just hand-write the opcodes
 void CPU::step()
 {
-	byte opcode = mmu->readByte(registers.pc++);
+	branchTaken = false;
+	byte opcode = mmu.readByte(registers.pc++);
 
 	if (registers.pc > 0x1000) {
 		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
@@ -126,16 +129,24 @@ void CPU::step()
 		break;
 	}
 	
+	if (branchTaken) {
+		instTime = branchedCycles[opcode];
+	}
+	else {
+		instTime = branchlessCycles[opcode];
+	}
+	clockTime += instTime;
+	gpu.step(instTime);
 }
 
 void CPU::loadRom(std::string name)
 {
-	mmu->load(name);
+	mmu.load(name);
 }
 
 void CPU::setByteRegisterVal(byte dst, byte val) {
 	if (dst == 6) {
-		mmu->writeByte(registers.hl, val);
+		mmu.writeByte(registers.hl, val);
 	}
 	else {
 		byte* dst_reg = byteRegisters[dst & 0b111];
@@ -146,13 +157,13 @@ void CPU::setByteRegisterVal(byte dst, byte val) {
 void CPU::setByteRegisters(byte src, byte dst) {
 	byte src_value;
 	if (src == 6) { // (HL)
-		src_value = mmu->readByte(registers.hl);
+		src_value = mmu.readByte(registers.hl);
 	}
 	else {
 		src_value = *byteRegisters[src];
 	}
 	if (dst == 6) {
-		mmu->writeByte(registers.hl, src_value);
+		mmu.writeByte(registers.hl, src_value);
 	}
 	else {
 		byte* dst_reg = byteRegisters[dst & 0b111];
@@ -164,7 +175,7 @@ void CPU::setByteRegisters(byte src, byte dst) {
 byte CPU::getByteRegister(byte reg_num)
 {
 	if (reg_num == 6) { // (HL)
-		return mmu->readByte(registers.hl);
+		return mmu.readByte(registers.hl);
 	}
 		
 	return *byteRegisters[reg_num];
@@ -172,22 +183,22 @@ byte CPU::getByteRegister(byte reg_num)
 
 word CPU::getWordAtPC()
 {
-	byte low = mmu->readByte(registers.pc++);
-	byte high = mmu->readByte(registers.pc++);
+	byte low = mmu.readByte(registers.pc++);
+	byte high = mmu.readByte(registers.pc++);
 	return join_bytes(high, low);
 }
 
 void CPU::stackPush(word reg)
 {
 
-	mmu->writeByte(--registers.sp, (reg >> 8) & 0xFF);
-	mmu->writeByte(--registers.sp, reg & 0xFF);
+	mmu.writeByte(--registers.sp, (reg >> 8) & 0xFF);
+	mmu.writeByte(--registers.sp, reg & 0xFF);
 }
 
 void CPU::stackPop(word& reg)
 {
-	byte low = mmu->readByte(registers.sp++);
-	byte high = mmu->readByte(registers.sp++);
+	byte low = mmu.readByte(registers.sp++);
+	byte high = mmu.readByte(registers.sp++);
 	word pop = join_bytes(high, low);
 	reg = pop;
 }
@@ -239,7 +250,7 @@ void CPU::INC_DEC_reg16(byte opcode)
 void CPU::LD_r8(byte opcode)
 {
 	byte reg = (opcode >> 3) & 0b111;
-	byte value = mmu->readByte(registers.pc++);
+	byte value = mmu.readByte(registers.pc++);
 	setByteRegisterVal(reg, value);
 }
 
@@ -283,7 +294,7 @@ void CPU::LD_acc_address(byte opcode)
 		break;
 	}
 
-	registers.acc = mmu->readByte(reg);
+	registers.acc = mmu.readByte(reg);
 	if (reg_num == 2) {
 		registers.hl += 1;
 	} else if (reg_num == 3) {
@@ -307,7 +318,7 @@ void CPU::LD_address_acc(byte opcode)
 		break;
 	}
 
-	mmu->writeByte(reg, registers.acc);
+	mmu.writeByte(reg, registers.acc);
 	if (reg_num == 2) {
 		registers.hl += 1;
 	}
@@ -317,9 +328,9 @@ void CPU::LD_address_acc(byte opcode)
 }
 
 void CPU::LD_acc_data() {
-	byte offset = mmu->readByte(registers.pc++);
+	byte offset = mmu.readByte(registers.pc++);
 	word data_address = 0xFF00 + offset;
-	mmu->writeByte(data_address, registers.acc);
+	mmu.writeByte(data_address, registers.acc);
 }
 
 // Loads the contents of a register into another register
@@ -333,12 +344,12 @@ void CPU::LD_r_r(byte opcode)
 void CPU::LD_address_r(byte reg)
 {
 	word add = getWordAtPC();
-	mmu->writeByte(add, reg);
+	mmu.writeByte(add, reg);
 }
 
 void CPU::LD_r_address(byte& reg) {
 	word add = getWordAtPC();
-	reg = mmu->readByte(add);
+	reg = mmu.readByte(add);
 }
 
 void CPU::ALU_r(byte opcode)
@@ -389,14 +400,15 @@ void CPU::ALU_r(byte opcode)
 }
 
 void CPU::JR() {
-	signed_byte offset = static_cast<signed_byte>(mmu->readByte(registers.pc++));
+	signed_byte offset = static_cast<signed_byte>(mmu.readByte(registers.pc++));
 	registers.pc += offset;
 }
 
 void CPU::JR(bool flag) {
-	signed_byte offset = static_cast<signed_byte>(mmu->readByte(registers.pc++));
+	signed_byte offset = static_cast<signed_byte>(mmu.readByte(registers.pc++));
 	if (flag) {
 		registers.pc += offset;
+		branchTaken = true;
 	}
 }
 

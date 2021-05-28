@@ -12,6 +12,10 @@ static const int SUB_FLAG = 6;
 static const int HALF_CARRY_FLAG = 5;
 static const int CARRY_FLAG = 4;
 
+
+const unsigned int GAMEBOY_WIDTH = 160;
+const unsigned int GAMEBOY_HEIGHT = 144;
+
 // Type definitions
 typedef uint8_t byte;
 typedef int8_t signed_byte;

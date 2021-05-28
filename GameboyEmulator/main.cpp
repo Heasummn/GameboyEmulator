@@ -10,10 +10,36 @@
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 
+// TODO: not global?
+std::vector< unsigned char > pixels;
+
+unsigned char colorToSDL(Color color) {
+	switch (color) {
+	case Color::Color0:
+		return 255;
+	case Color::Color1:
+		return 170;
+	case Color::Color2:
+		return 85;
+	case Color::Color3:
+		return 0;
+	}
+}
+
+void draw(FrameBuffer& frame)
+{
+	std::cout << "Drawing to screen" << std::endl;
+	for (uint32_t pixel = 0; pixel < GAMEBOY_WIDTH * GAMEBOY_HEIGHT * 4; pixel += 4) {
+		unsigned char color = colorToSDL(frame.getPixel(pixel / 4));
+		pixels[pixel] = 255; // alpha
+		pixels[pixel + 1] = color;
+		pixels[pixel + 2] = color;
+		pixels[pixel + 3] = color;
+	}
+}
+
 int main(int argc, char* args[])
 {
-
-
 	SDL_Init(SDL_INIT_EVERYTHING);
 
 	SDL_Window* window = SDL_CreateWindow("SDL2 ImGui Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_RESIZABLE);
@@ -21,26 +47,20 @@ int main(int argc, char* args[])
 
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo(renderer, &info);
-	std::cout << "Renderer name: " << info.name << std::endl;
-	std::cout << "Texture formats: " << std::endl;
-	for (Uint32 i = 0; i < info.num_texture_formats; i++)
-	{
-		std::cout << SDL_GetPixelFormatName(info.texture_formats[i]) << std::endl;
-	}
 
 	ImGui::CreateContext();
 	ImGuiSDL::Initialize(renderer, 800, 600);
 
 
-	const unsigned int screenWidth = 160;
-	const unsigned int screenHeight = 144;
+	const unsigned int screenWidth = GAMEBOY_WIDTH;
+	const unsigned int screenHeight = GAMEBOY_HEIGHT;
 
-	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight);
-	std::vector< unsigned char > pixels(screenWidth * screenHeight * 4, 255);
+	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, screenWidth, screenHeight);
+	pixels = std::vector<unsigned char>(screenWidth * screenHeight * 4, 255);
 
 
-	CPU* cpu = new CPU();
-	cpu->loadRom("./tetris.gb");
+	CPU* cpu = new CPU(draw);
+	cpu->loadRom("./cpu_instrs.gb");
 
 	bool run = true;
 	while (run)
@@ -105,7 +125,7 @@ int main(int argc, char* args[])
 			}
 		}
 		ImGui::End();
-
+		
 		ImGui::Begin("CPU Info");
 		ImGui::Text("Register Values: ");
 		ImGui::Text("PC: 0x%X; B: 0x%X; C: 0x%X; D: 0x%X; E: 0x%X; H: 0x%X; L: 0x%X; ACC: 0x%X", registers.pc, registers.b, registers.c, registers.d, registers.e, registers.h, registers.l, registers.acc);
@@ -114,26 +134,13 @@ int main(int argc, char* args[])
 		ImGui::Text("Flag: 0x%X; ZERO: %d; SUB: %d; HC: %d; C: %d", registers.flag, ACCESS_BIT(registers.flag, ZERO_FLAG), ACCESS_BIT(registers.flag, SUB_FLAG), ACCESS_BIT(registers.flag, HALF_CARRY_FLAG), ACCESS_BIT(registers.flag, CARRY_FLAG));
 		ImGui::End();
 
-		// SDL_SetRenderDrawColor(renderer, 114, 144, 154, 255);
-		// SDL_RenderClear(renderer);
-
+		
+		SDL_UpdateTexture(texture, NULL, pixels.data(), screenWidth * sizeof(uint32_t));
+		SDL_RenderCopy(renderer, texture, NULL, NULL);
 
 		ImGui::Render();
 		ImGuiSDL::Render(ImGui::GetDrawData());
-
-		for (unsigned int i = 0; i < 1000; i++)
-		{
-			const unsigned int x = rand() % screenWidth;
-			const unsigned int y = rand() % screenHeight;
-
-			const unsigned int offset = (screenWidth * 4 * y) + x * 4;
-			pixels[offset + 0] = rand() % 256;        // b
-			pixels[offset + 1] = rand() % 256;        // g
-			pixels[offset + 2] = rand() % 256;        // r
-			pixels[offset + 3] = SDL_ALPHA_OPAQUE;    // a
-		}
-		SDL_UpdateTexture(texture, NULL, pixels.data(), screenWidth * sizeof(uint32_t));
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
+	
 		SDL_RenderPresent(renderer);
 	}
 
