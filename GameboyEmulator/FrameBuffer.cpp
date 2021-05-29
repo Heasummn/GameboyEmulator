@@ -13,7 +13,7 @@ FrameBuffer::FrameBuffer()
 
 void FrameBuffer::setPixel(uint32_t x, uint32_t y, Color color)
 {
-	buffer[(y * GAMEBOY_HEIGHT) + x] = color;
+	buffer[(y * GAMEBOY_WIDTH) + x] = color;
 }
 
 void FrameBuffer::setPixel(uint32_t x, uint32_t y, byte color)
@@ -36,13 +36,13 @@ void FrameBuffer::setPixel(uint32_t x, uint32_t y, byte color)
 		realColor = Color::Color0;
 		break;
 	}
-	buffer[(y * GAMEBOY_HEIGHT) + x] = realColor;
+	buffer[(y * GAMEBOY_WIDTH) + x] = realColor;
 }
 
 
 Color FrameBuffer::getPixel(uint32_t x, uint32_t y) const
 {
-	return buffer[(y * GAMEBOY_HEIGHT) + x];
+	return buffer[(y * GAMEBOY_WIDTH) + x];
 }
 
 Color FrameBuffer::getPixel(uint32_t pixel) const

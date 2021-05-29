@@ -51,11 +51,11 @@ public:
 	inline registers_t getRegisters() { return registers; };
 
 	int instTime; // TODO: not sure what the best type for this is
+	MMU mmu;
 private:
 
 	
 	registers_t registers;
-	MMU mmu;
 	GPU gpu;
 
 	byte* byteRegisters[8];
@@ -63,6 +63,9 @@ private:
 
 	int clockTime; // TODO: not sure what the best type for this is
 	bool branchTaken;
+
+	int stepNormalOpcodes(byte opcode);
+	int stepExtendedOpcodes(byte opcode);
 
 	void setByteRegisterVal(byte dst, byte val);
 	void setByteRegisters(byte src, byte dst);
@@ -79,7 +82,9 @@ private:
 	void LD_r16(byte opcode);
 	void LD_address_acc(byte opcode);
 	void LD_acc_data();
+	void LD_data_acc();
 	void LD_acc_address(byte opcode);
+	void LD_Cadd_acc();
 	void LD_r_r(byte opcode);
 	void LD_address_r(byte opcode);
 	void LD_r_address(byte& opcode);
@@ -89,6 +94,10 @@ private:
 	void JP_16();
 	void RET();
 	void CALL_16();
+	void CP_A8();
 	void RST(word address);
+
+	void SR(byte opcode);
+	void BIT(byte opcode);
 };
 

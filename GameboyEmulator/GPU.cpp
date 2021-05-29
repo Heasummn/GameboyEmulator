@@ -1,8 +1,8 @@
 #include "GPU.h"
+#include <iostream>
 
-GPU::GPU(MMU& mmu, draw_callback_t draw_func)
+GPU::GPU(MMU& mmu, draw_callback_t draw_func) : mmu(mmu)
 {
-	this->mmu = mmu;
 	draw = draw_func;
 	mode = VideoMode::HBLANK;
 	modeClock = 0;
@@ -17,6 +17,25 @@ GPU::~GPU()
 }
 
 void GPU::step(int time) {
+	if (time == 0x34) {
+		word startAddress = 0x8000 + 0x20;
+		for (int i = 0; i < 16; i += 2) {
+			byte pixel1 = mmu.readByte(startAddress + i);
+			byte pixel2 = mmu.readByte(startAddress + i + 1);
+			for (byte j = 0; j < 8; j++) {
+				byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, (7 - j)) << 1) | ACCESS_BIT(pixel1, (7 - j)));
+				std::cout << std::hex << (int)color_value << " ";
+				frame.setPixel(j, i/2, color_value);
+			}
+			std::cout << "Address: " << std::hex << (int)startAddress + i << std::endl;
+
+		}
+		draw(frame);
+		modeClock = 0;
+	}
+	modeClock += time;
+
+	/*
 	modeClock += time;
 
 	switch (mode) {
@@ -65,7 +84,7 @@ void GPU::step(int time) {
 			writeLine();
 		}
 		break;
-	}
+	}*/
 }
 
 void GPU::writeLine() {
@@ -118,9 +137,10 @@ Tile GPU::getTile(uint32_t tileLocation, byte tileId, byte tileLine) {
 	byte pixel1 = mmu.readByte(lineAddress);
 	byte pixel2 = mmu.readByte(lineAddress + 1);
 
+
 	std::vector<byte> pixels;
 	for (byte i = 0; i < 8; i++) {
-		byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, 7 - i) << 1) | ACCESS_BIT(pixel1, 7 - i));
+		byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, (7 - i)) << 1) | ACCESS_BIT(pixel1, (7 - i)));
 		pixels.push_back(color_value);
 	}
 

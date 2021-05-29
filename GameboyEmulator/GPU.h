@@ -35,7 +35,7 @@ public:
 	void step(int time);
 
 private: 
-	MMU mmu;
+	MMU& mmu;
 	FrameBuffer frame; 
 
 	VideoMode mode;

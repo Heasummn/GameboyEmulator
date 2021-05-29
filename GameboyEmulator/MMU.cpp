@@ -33,6 +33,9 @@ void MMU::load(std::string name)
 
 byte MMU::readByte(word address) const
 {
+	if (address <= 0xFF) {
+		return bootDMG[address];
+	}
 	// Reading from ROM bank
 	if ((address >= 0x4000) && (address < 0x8000))
 	{

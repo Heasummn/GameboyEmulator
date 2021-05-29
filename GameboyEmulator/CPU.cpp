@@ -7,7 +7,7 @@ CPU::CPU(draw_callback_t draw_func) : mmu(), gpu(mmu, draw_func)
 	clockTime = 0;
 	instTime = 0;
 	registers = { 0 };
-	registers.pc = 0x0100;
+	registers.pc = 0x0;
 	registers.sp = 0xFFFE;
 	
 	byteRegisters[0] = &registers.b;
@@ -24,19 +24,30 @@ CPU::~CPU()
 {
 }
 
-// TODO: Parsing the gameboy opcodes is fine for now, I will probably want to do a major rewrite of this to use a map or something else later though and it might be easier to just hand-write the opcodes
 void CPU::step()
 {
-	branchTaken = false;
 	byte opcode = mmu.readByte(registers.pc++);
+	if (opcode == 0xCB) {
+		opcode = mmu.readByte(registers.pc++);
+		instTime = stepExtendedOpcodes(opcode);
+	} else {
+		instTime = stepNormalOpcodes(opcode);
+	}
+	clockTime += instTime;
+	gpu.step(registers.pc);
+}
 
-	if (registers.pc > 0x1000) {
+// TODO: Parsing the gameboy opcodes is fine for now, I will probably want to do a major rewrite of this to use a map or something else later though and it might be easier to just hand-write the opcodes
+int CPU::stepNormalOpcodes(byte opcode)
+{
+	branchTaken = false;
+	if (registers.pc > 0x0B) {
 		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
 	}
 
 	if (registers.pc == 0x2817) {
 		std::cout << "starting tileset load" << std::endl; 
-		return;
+		return 0;
 	}
 
 	switch (opcode) {
@@ -73,8 +84,23 @@ void CPU::step()
 		LD_acc_address(opcode);
 		break;
 	
+	// TODO: implement this as a function + all the other versions 
+	case 0x17: {
+		SET_BIT(registers.flag, CARRY_FLAG, (int)ACCESS_BIT(registers.acc, 7));
+		byte carry_flag = ACCESS_BIT(registers.flag, CARRY_FLAG);
+		registers.acc = (registers.acc << 1) | carry_flag;
+		break;
+	}
+
+	case 0x18:
+		JR();
+		break;
+	
 	case 0x20:
 		JR(ACCESS_BIT(registers.flag, ZERO_FLAG) == 0);
+		break;
+	case 0x28:
+		JR(ACCESS_BIT(registers.flag, ZERO_FLAG) == 1);
 		break;
 	case 0x30: 
 		JR(ACCESS_BIT(registers.flag, CARRY_FLAG) == 0);
@@ -91,12 +117,20 @@ void CPU::step()
 	case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87: case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f: case 0x90: case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97: case 0x98: case 0x99: case 0x9a: case 0x9b: case 0x9c: case 0x9d: case 0x9e: case 0x9f: case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7: case 0xa8: case 0xa9: case 0xaa: case 0xab: case 0xac: case 0xad: case 0xae: case 0xaf: case 0xb0: case 0xb1: case 0xb2: case 0xb3: case 0xb4: case 0xb5: case 0xb6: case 0xb7: case 0xb8: case 0xb9: case 0xba: case 0xbb: case 0xbc: case 0xbd: case 0xbe: case 0xbf:
 		ALU_r(opcode);
 		break;
-	
+
+	case 0xC1: // TODO: implement all of these
+		stackPop(registers.bc);
+		break;
+
 	// JP 16 bit
 	case 0xC3:
 		JP_16();
 		break;
 	
+	case 0xC5: // TODO: implement all of these
+		stackPush(registers.bc);
+		break;
+
 	// RETURN
 	case 0xC9:
 		RET();
@@ -108,15 +142,26 @@ void CPU::step()
 		break;
 
 	case 0xE0:
-		LD_acc_data();
+		LD_data_acc();
+		break;
+
+	case 0xE2:
+		LD_Cadd_acc();
 		break;
 
 	case 0xEA:
 		LD_address_r(registers.acc);
 		break;
 
+	case 0xF0:
+		LD_acc_data();
+
 	case 0xFA:
 		LD_r_address(registers.acc);
+		break;
+
+	case 0xFE:
+		CP_A8();
 		break;
 
 	// RST
@@ -135,8 +180,22 @@ void CPU::step()
 	else {
 		instTime = branchlessCycles[opcode];
 	}
-	clockTime += instTime;
-	gpu.step(instTime);
+	return instTime;
+}
+
+int CPU::stepExtendedOpcodes(byte opcode)
+{
+	switch ((opcode >> 6) & 0b11) {
+	case 0b00:
+		SR(opcode);
+	case 0b01:
+		BIT(opcode);
+		break;
+	default:
+		std::cout << "Unknown extension opcode: " << std::hex << static_cast<int>(opcode) << " " << (int)((opcode >> 6) & 0b11) << std::endl;
+	}
+
+	return 12; // TODO
 }
 
 void CPU::loadRom(std::string name)
@@ -237,7 +296,7 @@ void CPU::INC_DEC_reg16(byte opcode)
 		reg = &registers.sp;
 		break;
 	}
-	std::cout << "Modifying register " << (int)reg_num << " with operation " << (int)type << std::endl;
+	// std::cout << "Modifying register " << (int)reg_num << " with operation " << (int)type << std::endl;
 	if (type == 0) {
 		(*reg)++;
 	} else {
@@ -302,6 +361,11 @@ void CPU::LD_acc_address(byte opcode)
 	}
 }
 
+void CPU::LD_Cadd_acc()
+{
+	mmu.writeByte(0xFF00 + registers.c, registers.acc);
+}
+
 void CPU::LD_address_acc(byte opcode)
 {
 	byte reg_num = (opcode >> 4) & 0b11;
@@ -327,10 +391,17 @@ void CPU::LD_address_acc(byte opcode)
 	}
 }
 
-void CPU::LD_acc_data() {
+void CPU::LD_data_acc() {
 	byte offset = mmu.readByte(registers.pc++);
 	word data_address = 0xFF00 + offset;
 	mmu.writeByte(data_address, registers.acc);
+}
+
+void CPU::LD_acc_data()
+{
+	byte offset = mmu.readByte(registers.pc++);
+	word data_address = 0xFF00 + offset;
+	registers.acc = mmu.readByte(data_address);
 }
 
 // Loads the contents of a register into another register
@@ -426,12 +497,45 @@ void CPU::RET()
 void CPU::CALL_16()
 {
 	word jmp = getWordAtPC();
-	stackPush(jmp);
+	stackPush(registers.pc);
 	registers.pc = jmp;
+}
+
+void CPU::CP_A8()
+{
+	byte offset = mmu.readByte(registers.pc++);
+	(registers.acc - offset) == 0 ? SET_BIT(registers.flag, ZERO_FLAG, 1) : SET_BIT(registers.flag, ZERO_FLAG, 0);
+
 }
 
 void CPU::RST(word address)
 {
 	stackPush(address);
 	registers.pc = address;
+}
+
+void CPU::SR(byte opcode)
+{
+	byte register_num = opcode & 0b111;
+	byte type = (opcode >> 3) & 0b111;
+
+	switch (type) {
+	case 2: {
+		byte carry_flag = ACCESS_BIT(registers.flag, CARRY_FLAG);
+		SET_BIT(registers.flag, CARRY_FLAG, (int)ACCESS_BIT(getByteRegister(register_num), 7));
+		setByteRegisterVal(register_num, (getByteRegister(register_num) >> 1) | carry_flag);
+		break;
+	}
+	default:
+		std::cout << "Unknown extension opcode: " << std::hex << static_cast<int>(opcode) << " " << (int)((opcode >> 6) & 0b11) << std::endl;
+	}
+}
+
+void CPU::BIT(byte opcode)
+{
+	byte register_num = opcode & 0b111;
+	byte bit = (opcode >> 3) & 0b111;
+	byte value = ACCESS_BIT(getByteRegister(register_num), bit);
+	// std::cout << "Checking bit " << (int)bit << " of register " << (int)register_num << std::endl;
+	SET_BIT(registers.flag, ZERO_FLAG, (value == 0));
 }

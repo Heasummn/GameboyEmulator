@@ -28,13 +28,13 @@ unsigned char colorToSDL(Color color) {
 
 void draw(FrameBuffer& frame)
 {
-	std::cout << "Drawing to screen" << std::endl;
-	for (uint32_t pixel = 0; pixel < GAMEBOY_WIDTH * GAMEBOY_HEIGHT * 4; pixel += 4) {
-		unsigned char color = colorToSDL(frame.getPixel(pixel / 4));
-		pixels[pixel] = 255; // alpha
-		pixels[pixel + 1] = color;
-		pixels[pixel + 2] = color;
-		pixels[pixel + 3] = color;
+	// std::cout << "Drawing to screen" << std::endl;
+	for (uint32_t pixel = 0; pixel < GAMEBOY_WIDTH * GAMEBOY_HEIGHT; pixel++) {
+		unsigned char color = colorToSDL(frame.getPixel(pixel));
+		pixels[pixel*4] = 255; // alpha
+		pixels[pixel*4 + 1] = color;
+		pixels[pixel*4 + 2] = color;
+		pixels[pixel*4 + 3] = color;
 	}
 }
 
@@ -60,7 +60,7 @@ int main(int argc, char* args[])
 
 
 	CPU* cpu = new CPU(draw);
-	cpu->loadRom("./cpu_instrs.gb");
+	cpu->loadRom("./tetris.gb");
 
 	bool run = true;
 	while (run)
@@ -118,8 +118,8 @@ int main(int argc, char* args[])
 			for (int i = 0; i < 1000; i++)
 				cpu->step();
 		}
-		if (ImGui::Button("Run Until 0x279E")) {
-			while (registers.pc < 0x2700) {
+		if (ImGui::Button("Run Until 0x0055")) {
+			while (registers.pc != 0x53) {
 				cpu->step();
 				registers = cpu->getRegisters();
 			}
@@ -132,6 +132,14 @@ int main(int argc, char* args[])
 		ImGui::Spacing();
 		ImGui::Text("Flags: ");
 		ImGui::Text("Flag: 0x%X; ZERO: %d; SUB: %d; HC: %d; C: %d", registers.flag, ACCESS_BIT(registers.flag, ZERO_FLAG), ACCESS_BIT(registers.flag, SUB_FLAG), ACCESS_BIT(registers.flag, HALF_CARRY_FLAG), ACCESS_BIT(registers.flag, CARRY_FLAG));
+		ImGui::Spacing();
+		/*ImGui::Text("Stack: ");
+		ImGui::Text("0x%X: %X; 0x%X: %X; 0x%X: %X; 0x%X: %X; 0x%X: %X; 0x%X: %X", registers.sp, cpu->mmu.readByte(registers.sp),
+			registers.sp + 1, cpu->mmu.readByte(registers.sp + 1),
+			registers.sp + 2, cpu->mmu.readByte(registers.sp + 2),
+			registers.sp + 3, cpu->mmu.readByte(registers.sp + 3),
+			registers.sp + 4, cpu->mmu.readByte(registers.sp + 4),
+			registers.sp + 5, cpu->mmu.readByte(registers.sp + 5));*/
 		ImGui::End();
 
 		
