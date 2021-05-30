@@ -118,12 +118,13 @@ int main(int argc, char* args[])
 			for (int i = 0; i < 1000; i++)
 				cpu->step();
 		}
-		if (ImGui::Button("Run Until 0x0055")) {
-			while (registers.pc != 0x53) {
+		if (ImGui::Button("Run Until 0x0034")) {
+			while (registers.pc != 0x34) {
 				cpu->step();
 				registers = cpu->getRegisters();
 			}
 		}
+
 		ImGui::End();
 		
 		ImGui::Begin("CPU Info");

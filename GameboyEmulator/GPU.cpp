@@ -18,18 +18,21 @@ GPU::~GPU()
 
 void GPU::step(int time) {
 	if (time == 0x34) {
-		word startAddress = 0x8000 + 0x20;
-		for (int i = 0; i < 16; i += 2) {
-			byte pixel1 = mmu.readByte(startAddress + i);
-			byte pixel2 = mmu.readByte(startAddress + i + 1);
-			for (byte j = 0; j < 8; j++) {
-				byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, (7 - j)) << 1) | ACCESS_BIT(pixel1, (7 - j)));
-				std::cout << std::hex << (int)color_value << " ";
-				frame.setPixel(j, i/2, color_value);
+		word startAddress = 0x8000;
+		for (int i = 0; i < 16; i++) {
+			for (int y = 0; y < 8; y++) {
+				byte pixel1 = mmu.readByte(startAddress + y * 2);
+				byte pixel2 = mmu.readByte(startAddress + y * 2 + 1);
+				for (byte x = 0; x < 8; x++) {
+					byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, (7 - x)) << 1) | ACCESS_BIT(pixel1, (7 - x)));
+					// std::cout << std::hex << (int)color_value << " ";
+					frame.setPixel(x + 9 * i, y, color_value); // Give one space between each
+				}
+				// std::cout << "Address: " << std::hex << (int)startAddress + y*2 << std::endl;
 			}
-			std::cout << "Address: " << std::hex << (int)startAddress + i << std::endl;
-
+			startAddress += 0x10;
 		}
+		
 		draw(frame);
 		modeClock = 0;
 	}

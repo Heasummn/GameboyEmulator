@@ -86,8 +86,8 @@ int CPU::stepNormalOpcodes(byte opcode)
 	
 	// TODO: implement this as a function + all the other versions 
 	case 0x17: {
-		SET_BIT(registers.flag, CARRY_FLAG, (int)ACCESS_BIT(registers.acc, 7));
 		byte carry_flag = ACCESS_BIT(registers.flag, CARRY_FLAG);
+		SET_BIT(registers.flag, CARRY_FLAG, (int)ACCESS_BIT(registers.acc, 7));
 		registers.acc = (registers.acc << 1) | carry_flag;
 		break;
 	}
@@ -523,7 +523,7 @@ void CPU::SR(byte opcode)
 	case 2: {
 		byte carry_flag = ACCESS_BIT(registers.flag, CARRY_FLAG);
 		SET_BIT(registers.flag, CARRY_FLAG, (int)ACCESS_BIT(getByteRegister(register_num), 7));
-		setByteRegisterVal(register_num, (getByteRegister(register_num) >> 1) | carry_flag);
+		setByteRegisterVal(register_num, (getByteRegister(register_num) << 1) | carry_flag);
 		break;
 	}
 	default:
