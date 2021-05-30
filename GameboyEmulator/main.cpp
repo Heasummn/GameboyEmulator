@@ -28,7 +28,7 @@ unsigned char colorToSDL(Color color) {
 
 void draw(FrameBuffer& frame)
 {
-	// std::cout << "Drawing to screen" << std::endl;
+	std::cout << "Drawing to screen" << std::endl;
 	for (uint32_t pixel = 0; pixel < GAMEBOY_WIDTH * GAMEBOY_HEIGHT; pixel++) {
 		unsigned char color = colorToSDL(frame.getPixel(pixel));
 		pixels[pixel*4] = 255; // alpha

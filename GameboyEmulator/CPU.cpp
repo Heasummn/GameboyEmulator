@@ -34,7 +34,7 @@ void CPU::step()
 		instTime = stepNormalOpcodes(opcode);
 	}
 	clockTime += instTime;
-	gpu.step(registers.pc);
+	gpu.step(instTime);
 }
 
 // TODO: Parsing the gameboy opcodes is fine for now, I will probably want to do a major rewrite of this to use a map or something else later though and it might be easier to just hand-write the opcodes

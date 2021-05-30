@@ -17,16 +17,16 @@ GPU::~GPU()
 }
 
 void GPU::step(int time) {
-	if (time == 0x34) {
+	/*if (time == 0x34) {
 		word startAddress = 0x8000;
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < 0x19; i++) {
 			for (int y = 0; y < 8; y++) {
 				byte pixel1 = mmu.readByte(startAddress + y * 2);
 				byte pixel2 = mmu.readByte(startAddress + y * 2 + 1);
 				for (byte x = 0; x < 8; x++) {
 					byte color_value = static_cast<byte>((ACCESS_BIT(pixel2, (7 - x)) << 1) | ACCESS_BIT(pixel1, (7 - x)));
 					// std::cout << std::hex << (int)color_value << " ";
-					frame.setPixel(x + 9 * i, y, color_value); // Give one space between each
+					frame.setPixel(x + 9 * (i % 0x10), y + 9 * (i/0x10), color_value); // Give one space between each
 				}
 				// std::cout << "Address: " << std::hex << (int)startAddress + y*2 << std::endl;
 			}
@@ -35,10 +35,8 @@ void GPU::step(int time) {
 		
 		draw(frame);
 		modeClock = 0;
-	}
-	modeClock += time;
-
-	/*
+	}*/
+	
 	modeClock += time;
 
 	switch (mode) {
@@ -48,6 +46,7 @@ void GPU::step(int time) {
 			modeClock = 0;
 			line++;
 			if (line == 143) {
+				std::cout << "Gpu Line: " << line << std::endl;
 				mode = VideoMode::VBLANK;
 				draw(frame);
 			}
@@ -87,7 +86,7 @@ void GPU::step(int time) {
 			writeLine();
 		}
 		break;
-	}*/
+	}
 }
 
 void GPU::writeLine() {

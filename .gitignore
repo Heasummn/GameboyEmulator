@@ -342,3 +342,4 @@ healthchecksdb
 *.vcxproj
 *.sln
 *.filters
+/GameboyEmulator/imgui.ini
