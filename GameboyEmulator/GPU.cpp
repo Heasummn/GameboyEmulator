@@ -38,7 +38,7 @@ void GPU::step(int time) {
 	}*/
 	
 	modeClock += time;
-
+	// std::cout << "Gpu Line: " << (int)line << std::endl;
 	switch (mode) {
 	// Hblank
 	case VideoMode::HBLANK:
@@ -46,7 +46,6 @@ void GPU::step(int time) {
 			modeClock = 0;
 			line++;
 			if (line == 143) {
-				std::cout << "Gpu Line: " << line << std::endl;
 				mode = VideoMode::VBLANK;
 				draw(frame);
 			}

@@ -52,11 +52,12 @@ public:
 
 	int instTime; // TODO: not sure what the best type for this is
 	MMU mmu;
+	GPU gpu;
+
 private:
 
 	
 	registers_t registers;
-	GPU gpu;
 
 	byte* byteRegisters[8];
 

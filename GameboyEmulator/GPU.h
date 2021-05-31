@@ -1,7 +1,9 @@
 #pragma once
+
 #include <cstdint>
 #include <memory>
 #include <functional>
+
 #include "common.h"
 #include "MMU.h"
 #include "Tile.h"
@@ -33,6 +35,9 @@ public:
 	~GPU();
 
 	void step(int time);
+	byte line; // register LY
+	int scrollY;
+	int scrollX;
 
 private: 
 	MMU& mmu;
@@ -42,9 +47,8 @@ private:
 
 	// TODO: Compress all of these to the right type eventually
 	int modeClock;
-	int line;
-	int scrollY;
-	int scrollX;
+
+	
 
 	void writeLine();
 	Tile getTile(uint32_t tileLocation, byte tileId, byte tileLine);

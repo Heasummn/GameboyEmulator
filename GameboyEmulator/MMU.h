@@ -22,10 +22,12 @@ const byte bootDMG[256] = {
    0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xFB, 0x86, 0x00, 0x00, 0x3E, 0x01, 0xE0, 0x50
 };
 
+class GPU;
+
 class MMU
 {
 public:
-	MMU();
+	MMU(GPU& gpu);
 	~MMU();
 
 	void load(std::string name);
@@ -36,6 +38,8 @@ public:
 
 private:
 	
+	GPU& gpu;
+
 	// Gameboy has 2^16 bits of addressible space
 	byte internalMem[0xFFFF] = { 0 };
 
@@ -61,4 +65,6 @@ private:
 	bool ramEnabled = false;
 
 	void controlBanking(word address, byte value);
+	byte IORead(word address) const;
+	void IOWrite(word address, byte value);
 };

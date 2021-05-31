@@ -1,10 +1,11 @@
 #include "mmu.h"
 #include "common.h"
+#include "GPU.h"
 #include <iostream>
 #include <fstream>
 
 
-MMU::MMU()
+MMU::MMU(GPU& gpu) : gpu(gpu)
 {
 }
 
@@ -50,6 +51,12 @@ byte MMU::readByte(word address) const
 		return ramBanks[ramAddress + currRamBank * 0x2000];
 	}
 
+	// reading from IO
+	if ((address >= 0xFF00) && (address < 0xFF80)) 
+	{
+		return IORead(address);
+	}
+
 	// Just good old normal memory
 	return internalMem[address];
 }
@@ -71,6 +78,12 @@ void MMU::writeByte(word address, byte value)
 
 	// 0xFEA0 -> 0xFEFF: Cannot be written to
 	else if (((address >= 0xFEA0) && (address < 0xFEFF))) {}
+
+	// reading from IO
+	else if ((address >= 0xFF00) && (address < 0xFF80))
+	{
+		IOWrite(address, value);
+	}
 
 	// Everything else is fair game
 	else
@@ -151,5 +164,39 @@ void MMU::controlBanking(word address, byte value)
 		{
 			currRamBank = 0; // GB can only use Ram Bank 0 during ROM mode
 		}
+	}
+}
+
+byte MMU::IORead(word address) const
+{
+	switch (address) {
+	case 0xFF42:
+		return gpu.scrollY;
+	case 0xFF43:
+		return gpu.scrollX;
+	case 0xFF44:
+		// std::cout << "Reading gpu line " << (int)gpu.line << std::endl;
+		return gpu.line;
+	}
+
+	return internalMem[address];
+}
+
+void MMU::IOWrite(word address, byte value)
+{
+	switch (address) {
+	case 0xFF42:
+		gpu.scrollY = value;
+		break;
+
+	case 0xFF43:
+		gpu.scrollX = value;
+		break;
+	case 0xFF44:
+		gpu.line = value;
+		break;
+	default:
+		internalMem[address] = value;
+		break;
 	}
 }

@@ -1,7 +1,7 @@
 #include "CPU.h"
 #include <iostream>
 
-CPU::CPU(draw_callback_t draw_func) : mmu(), gpu(mmu, draw_func)
+CPU::CPU(draw_callback_t draw_func) : mmu(gpu), gpu(mmu, draw_func)
 {
 	branchTaken = false;
 	clockTime = 0;
@@ -41,9 +41,9 @@ void CPU::step()
 int CPU::stepNormalOpcodes(byte opcode)
 {
 	branchTaken = false;
-	if (registers.pc > 0x0B) {
+	/*if (registers.pc > 0x0B) {
 		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
-	}
+	}*/
 
 	if (registers.pc == 0x2817) {
 		std::cout << "starting tileset load" << std::endl; 
@@ -155,6 +155,7 @@ int CPU::stepNormalOpcodes(byte opcode)
 
 	case 0xF0:
 		LD_acc_data();
+		break;
 
 	case 0xFA:
 		LD_r_address(registers.acc);
