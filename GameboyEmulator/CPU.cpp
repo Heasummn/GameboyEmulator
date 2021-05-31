@@ -41,9 +41,9 @@ void CPU::step()
 int CPU::stepNormalOpcodes(byte opcode)
 {
 	branchTaken = false;
-	/*if (registers.pc > 0x0B) {
+	if (registers.pc > 0x7000) {
 		std::cout << "PC: " << registers.pc << ", " << std::hex << static_cast<int>(opcode) << std::endl;
-	}*/
+	}
 
 	if (registers.pc == 0x2817) {
 		std::cout << "starting tileset load" << std::endl; 

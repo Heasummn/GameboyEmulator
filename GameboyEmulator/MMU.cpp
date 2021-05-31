@@ -41,7 +41,7 @@ byte MMU::readByte(word address) const
 	if ((address >= 0x4000) && (address < 0x8000))
 	{
 		word romAddress = address - 0x4000;
-		return cartridgeMem[address + currRomBank * 0x4000];
+		return cartridgeMem[romAddress + currRomBank * 0x4000];
 	}
 
 	// Reading from RAM bank
